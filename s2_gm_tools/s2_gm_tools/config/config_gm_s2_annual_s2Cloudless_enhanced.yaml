@@ -1,18 +1,18 @@
-plugin: s2_gm_tools.s2_gm_plugin.GMS2AUS
+plugin: s2_gm_tools.s2_gm_plugin_refactor.GMS2AUS
 plugin_config:
   resampling: cubic
-  bands: ["nbart_red", "nbart_green", "nbart_blue"]
+  bands: ["nbart_red", "nbart_green", "nbart_blue", "nbart_contiguity"]
   rgb_bands: ["nbart_red", "nbart_green", "nbart_blue"]
   mask_band: "oa_s2cloudless_mask"
   proba_band: "oa_s2cloudless_prob"
   contiguity_band: "nbart_contiguity"
   nodata_classes: ["nodata"]
   cp_threshold: 0.1
-  cloud_filters: {"cloud": [["opening", 2], ["dilation", 3]]}
+  # cloud_filters: {"cloud": [["opening", 2], ["dilation", 3]]}
   aux_names:
-    smad: sdev
-    emad: edev
-    bcmad: bcdev
+    smad: smad
+    emad: emad
+    bcmad: bcmad
     count: count
 product:
   name: ga_s2_gm_cyear_3
