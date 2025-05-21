@@ -105,17 +105,7 @@ class GMS2AUS(StatsPluginInterface):
         """
         The first step in this transform is similar to standard
         GM plugin that erases nodata and non-contiguous pixels.
-        In the second step we use cloud-probabilities to find
-        regions that are persistently mis-classified as cloud.
         
-        Then we apply morphological filters to the enhanced 
-        cloud mask
-
-        Logic:
-        1. Take the 10th percentile of long-term cloud probabilities (CP)
-        2. Where 10th percentile CP > cp_threshold, add 0.4 to the long-term percentiles,
-           this is the new cloud-probability threshold for those problem regions.
-        3. Clip the maximum threshold to 0.90 (highest threshold is 90 %)
         """
 
         # step 1-----------------
@@ -138,6 +128,26 @@ class GMS2AUS(StatsPluginInterface):
         
         xx = erase_bad(xx, bad)
 
+        return xx
+         
+
+    def reduce(self, xx: xr.Dataset) -> xr.Dataset:
+        """
+        First we use cloud-probabilities to find
+        regions that are persistently mis-classified as cloud.
+        
+        Then we apply morphological filters to the enhanced 
+        cloud mask
+
+        Then run the geomedian on the masked S2 data.
+        
+        Logic:
+        1. Take the 10th percentile of long-term cloud probabilities (CP)
+        2. Where 10th percentile CP > cp_threshold, add 0.4 to the long-term percentiles,
+           this is the new cloud-probability threshold for those problem regions.
+        3. Clip the maximum threshold to 0.90 (highest threshold is 90 %)
+        
+        """
         # ----Step 2----Use the cloud probability to identify persistently mis-classified regions
         prob_quantile = xr_quantile(xx[[self.proba_band]], quantiles=[0.1], nodata=np.nan)
         prob_quantile = prob_quantile[self.proba_band].sel(quantile=0.1)
@@ -163,15 +173,7 @@ class GMS2AUS(StatsPluginInterface):
         #tidy up and apply the cloud mask to the data
         xx = xx.drop_vars(self.proba_band)
         xx = xx.where(~updated_cloud_mask).drop_vars('quantile')
-
-        return xx
-         
-
-    def reduce(self, xx: xr.Dataset) -> xr.Dataset:
-        """
-        Run the geomedian on the masked S2 data.
         
-        """
         scale = 1 / 10_000
         cfg = {
             "maxiters": 1000,
