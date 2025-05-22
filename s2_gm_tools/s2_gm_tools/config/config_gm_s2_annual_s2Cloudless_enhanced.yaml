@@ -1,11 +1,11 @@
 plugin: s2_gm_tools.s2_gm_plugin_refactor.GMS2AUS
 plugin_config:
   resampling: cubic
-  bands: ["nbart_red", "nbart_green", "nbart_blue", "nbart_contiguity"]
+  bands: ["nbart_red", "nbart_green", "nbart_blue"]
   rgb_bands: ["nbart_red", "nbart_green", "nbart_blue"]
   mask_band: "oa_s2cloudless_mask"
   proba_band: "oa_s2cloudless_prob"
-  contiguity_band: "nbart_contiguity"
+  contiguity_band: "oa_nbart_contiguity"
   nodata_classes: ["nodata"]
   cp_threshold: 0.1
   # cloud_filters: {"cloud": [["opening", 2], ["dilation", 3]]}

@@ -26,9 +26,9 @@ from odc.algo.io import load_with_native_transform
 from odc.stats.plugins._registry import register, StatsPluginInterface
 from odc.algo import xr_quantile, geomedian_with_mads
 from odc.algo._masking import (
-    _xr_fuse,
+    # _xr_fuse,
     erase_bad,
-    _fuse_mean_np,
+    # _fuse_mean_np,
     enum_to_bool,
     mask_cleanup,
 )
@@ -45,7 +45,7 @@ class GMS2AUS(StatsPluginInterface):
         bands: Optional[Sequence[str]] = ["nbart_red", "nbart_green", "nbart_blue"],
         mask_band: str = "oa_s2cloudless_mask",
         proba_band: str = "oa_s2cloudless_prob",
-        contiguity_band: str = "nbart_contiguity",
+        contiguity_band: str = "oa_nbart_contiguity",
         group_by: str = "solar_day",
         nodata_classes: Optional[Sequence[str]] = ["nodata"], 
         cp_threshold: float = 0.1,
@@ -92,7 +92,8 @@ class GMS2AUS(StatsPluginInterface):
                 rgb_bands = ("nbart_red", "nbart_green", "nbart_blue")
 
         super().__init__(
-            input_bands=tuple(bands)+(mask_band,)+(proba_band,), **kwargs
+            input_bands=tuple(bands)+(mask_band,)+(proba_band,)+(contiguity_band,),            
+            **kwargs
         )
 
     @property
@@ -121,11 +122,12 @@ class GMS2AUS(StatsPluginInterface):
             non_contiguent = xx.get(self.contiguity_band, 1) == 0
             bad = bad | non_contiguent
 
+        # drop masking bands
         if self.contiguity_band is not None:
             xx = xx.drop_vars([self.mask_band] + [self.contiguity_band])
         else:
             xx = xx.drop_vars([self.mask_band])
-        
+            
         xx = erase_bad(xx, bad)
 
         return xx
@@ -135,18 +137,18 @@ class GMS2AUS(StatsPluginInterface):
         """
         First we use cloud-probabilities to find
         regions that are persistently mis-classified as cloud.
-        
-        Then we apply morphological filters to the enhanced 
-        cloud mask
 
-        Then run the geomedian on the masked S2 data.
-        
         Logic:
         1. Take the 10th percentile of long-term cloud probabilities (CP)
         2. Where 10th percentile CP > cp_threshold, add 0.4 to the long-term percentiles,
            this is the new cloud-probability threshold for those problem regions.
         3. Clip the maximum threshold to 0.90 (highest threshold is 90 %)
         
+        Then we apply morphological filters to the enhanced 
+        cloud mask
+
+        Then run the geomedian on the masked S2 data.
+
         """
         # ----Step 2----Use the cloud probability to identify persistently mis-classified regions
         prob_quantile = xr_quantile(xx[[self.proba_band]], quantiles=[0.1], nodata=np.nan)
@@ -170,10 +172,14 @@ class GMS2AUS(StatsPluginInterface):
         # -------apply morphological filters--------------
         updated_cloud_mask = mask_cleanup(updated_cloud_mask, mask_filters=self.cloud_filters)
 
-        #tidy up and apply the cloud mask to the data
+        # tidy up and apply the cloud mask to the data
         xx = xx.drop_vars(self.proba_band)
-        xx = xx.where(~updated_cloud_mask).drop_vars('quantile')
+        # xx = xx.where(~updated_cloud_mask).drop_vars('quantile')
+
+        xx = erase_bad(xx, updated_cloud_mask)
+        # xx = xx.drop_vars('quantile')
         
+        # config for gm
         scale = 1 / 10_000
         cfg = {
             "maxiters": 1000,
