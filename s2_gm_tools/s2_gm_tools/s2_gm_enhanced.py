@@ -3,8 +3,7 @@ Geomedian with enhanced s2Cloudless masking
 
 TODO:
 - Should I be doing something with fusers?
-- How is contiguity and nodata masking working? How is it being resampled?
-- Need to load all S2 sensors for long-term cloud probability
+- How is contiguity and nodata masking being resampled?
 - How can we document these functions for new users?
     The plugin examples in odc-stats are  sparse.
     
@@ -22,7 +21,6 @@ from datacube.utils import masking
 from odc.geo.xr import assign_crs
 from odc.geo.geobox import GeoBox
 from odc.algo.io import load_with_native_transform
-# from odc.stats.plugins import StatsPluginInterface
 from odc.stats.plugins._registry import register, StatsPluginInterface
 from odc.algo import xr_quantile, geomedian_with_mads
 from odc.algo._masking import (
@@ -51,7 +49,7 @@ class GMS2AUS(StatsPluginInterface):
         cp_threshold: float = 0.1,
         cloud_filters: Optional[Iterable[Tuple[str, int]]] = [
             ["opening", 2],
-            ["dilation", 4],
+            ["dilation", 3],
         ],
         aux_names: Dict[str, str] = None,
         work_chunks: Tuple[int, int] = (400, 400),
@@ -106,6 +104,7 @@ class GMS2AUS(StatsPluginInterface):
         """
         The first step in this transform is similar to standard
         GM plugin that erases nodata and non-contiguous pixels.
+        But cloud masking comes later in the reduce step
         
         """
 
@@ -121,6 +120,12 @@ class GMS2AUS(StatsPluginInterface):
         if self.contiguity_band is not None:
             non_contiguent = xx.get(self.contiguity_band, 1) == 0
             bad = bad | non_contiguent
+
+        # # cloud mask for testing
+        # cloud_mask = enum_to_bool(
+        #         mask=xx[self.mask_band], categories=["cloud"]
+        #     )
+        # bad = cloud_mask | bad
 
         # drop masking bands
         if self.contiguity_band is not None:
@@ -174,10 +179,7 @@ class GMS2AUS(StatsPluginInterface):
 
         # tidy up and apply the cloud mask to the data
         xx = xx.drop_vars(self.proba_band)
-        # xx = xx.where(~updated_cloud_mask).drop_vars('quantile')
-
         xx = erase_bad(xx, updated_cloud_mask)
-        # xx = xx.drop_vars('quantile')
         
         # config for gm
         scale = 1 / 10_000
@@ -195,7 +197,7 @@ class GMS2AUS(StatsPluginInterface):
 
         # Hard code loading a single year of data for GM
         # we saved five years of data with save-tasks.
-        # xx= xx.sel(spec='2022')
+        xx= xx.sel(spec='2022')
         gm = geomedian_with_mads(xx, **cfg)
 
         return gm

@@ -1,4 +1,4 @@
-plugin: s2_gm_tools.s2_gm_plugin_refactor.GMS2AUS
+plugin: s2_gm_tools.s2_gm_enhanced.GMS2AUS
 plugin_config:
   resampling: cubic
   bands: ["nbart_red", "nbart_green", "nbart_blue"]
